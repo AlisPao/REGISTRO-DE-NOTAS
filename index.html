@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Registro Digital de Calificaciones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#ffffff; --border:#dfe4ea; --text:#1f2933; --muted:#697586;
+    --primary:#2f6f4f; --primary-dark:#245a3f; --accent:#e8f3ee; --danger:#c0392b;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12181a; --card:#1b2325; --border:#2c383b; --text:#eef2f0; --muted:#9aa7a6;
+      --primary:#5bbf8c; --primary-dark:#4aa578; --accent:#1c2b24; --danger:#e17c6f;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12181a; --card:#1b2325; --border:#2c383b; --text:#eef2f0; --muted:#9aa7a6;
+    --primary:#5bbf8c; --primary-dark:#4aa578; --accent:#1c2b24; --danger:#e17c6f;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text);
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  header{
+    padding:18px 16px 14px; background:var(--card); border-bottom:1px solid var(--border);
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:5;
+  }
+  header h1{margin:0; font-size:1.15rem;}
+  header p{margin:4px 0 0; color:var(--muted); font-size:.85rem;}
+  main{max-width:980px; margin:0 auto; padding:16px; padding-bottom:60px;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; margin-bottom:16px;
+  }
+  .card h2{margin:0 0 12px; font-size:1rem; color:var(--text);}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;}
+  label{display:block; font-size:.78rem; color:var(--muted); margin-bottom:4px; font-weight:600;}
+  input[type=text], select, input[type=number]{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); font-size:.92rem;
+  }
+  select:disabled, input:disabled{opacity:.5;}
+  .badge{
+    display:inline-block; background:var(--accent); color:var(--primary-dark);
+    border-radius:999px; padding:3px 10px; font-size:.75rem; font-weight:600; margin-left:6px;
+  }
+  table{width:100%; border-collapse:collapse; font-size:.8rem; table-layout:fixed;}
+  col.col-name{width:150px;}
+  col.col-grade{width:60px;}
+  thead th{
+    text-align:center; padding:8px 4px; border-bottom:2px solid var(--border);
+    color:var(--muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.02em;
+    white-space:normal; line-height:1.15; word-break:break-word;
+  }
+  thead th:first-child{text-align:left;}
+  tbody td{padding:5px 4px; border-bottom:1px solid var(--border); vertical-align:middle; text-align:center;}
+  tbody tr:hover{background:var(--accent);}
+  .tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); border-radius:8px;}
+  .nombre-col, thead th:first-child{
+    font-weight:600; white-space:normal; word-break:break-word; line-height:1.2;
+    position:sticky; left:0; background:var(--card); z-index:2; text-align:left;
+    box-shadow:2px 0 4px -2px rgba(0,0,0,.15);
+  }
+  .grade-input, .qual-select{
+    display:block; width:100%; height:32px; line-height:30px;
+    text-align:center; text-align-last:center;
+    margin:0; padding:0 2px; box-sizing:border-box; font-size:.8rem; min-width:0;
+    border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);
+    -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    font-family:inherit; vertical-align:middle;
+  }
+  .grade-input:disabled, .qual-select:disabled{background:var(--accent); opacity:.85; color:var(--text);}
+  .qual-select{
+    background-image:url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3e%3cpath fill='%23697586' d='M1 1l5 5 5-5'/%3e%3c/svg%3e");
+    background-repeat:no-repeat; background-position:right 6px center; background-size:9px 6px;
+    padding-right:16px;
+  }
+  .grade-input::-webkit-outer-spin-button, .grade-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .grade-input{-moz-appearance:textfield;}
+  .grade-input.nota-baja{color:var(--danger); border-color:var(--danger); font-weight:700; background:#fdecea;}
+  :root[data-theme="dark"] .grade-input.nota-baja, @media (prefers-color-scheme: dark){.grade-input.nota-baja{background:#3a2420;}}
+  .scroll-hint{font-size:.75rem; color:var(--muted); margin:-6px 0 8px; display:none;}
+  @media (max-width:640px){
+    .scroll-hint{display:block;}
+    .grade-input, .qual-select{font-size:16px; height:42px; line-height:40px;}
+    main{padding:10px;}
+    .card{padding:12px;}
+    header h1{font-size:1.02rem;}
+  }
+  /* Vista de tarjetas en pantallas angostas: cada estudiante como bloque, sin scroll horizontal */
+  @media (max-width:600px){
+    table, thead, tbody, tr, th, td{display:block; width:auto;}
+    col{display:none;}
+    thead{position:absolute; left:-9999px; top:-9999px;}
+    .tablewrap{border:none; overflow:visible;}
+    tbody tr{
+      background:var(--card); border:1px solid var(--border); border-radius:10px;
+      padding:10px 12px; margin-bottom:12px;
+    }
+    tbody td{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      border:none; padding:7px 0; text-align:right;
+    }
+    tbody td::before{
+      content:attr(data-label); font-weight:600; color:var(--muted);
+      font-size:.72rem; text-transform:uppercase; letter-spacing:.02em; text-align:left;
+    }
+    .nombre-col, thead th:first-child{
+      position:static; box-shadow:none; padding:0 0 8px !important; margin-bottom:6px;
+      border-bottom:1px solid var(--border) !important; font-size:1rem; display:block !important;
+    }
+    .nombre-col::before{content:none;}
+    .grade-input, .qual-select{width:130px; height:40px;}
+  }
+  .adminlist{max-height:260px; overflow-y:auto; margin-top:10px; border:1px solid var(--border); border-radius:8px;}
+  .adminlist table{font-size:.78rem; table-layout:auto;}
+  .adminlist th{position:sticky; top:0; background:var(--card);}
+  .adminlist td, .adminlist th{padding:6px 8px; text-align:left; white-space:nowrap;}
+  button.primary{
+    background:var(--primary); color:#fff; border:none; padding:11px 20px;
+    border-radius:8px; font-size:.95rem; font-weight:600; cursor:pointer;
+  }
+  button.primary:hover{background:var(--primary-dark);}
+  button.primary:disabled{opacity:.5; cursor:not-allowed;}
+  button.ghost{
+    background:transparent; border:1px solid var(--border); color:var(--text);
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-size:.85rem;
+  }
+  .msg{padding:10px 12px; border-radius:8px; margin-top:10px; font-size:.85rem;}
+  .msg.ok{background:var(--accent); color:var(--primary-dark);}
+  .msg.err{background:#fbe9e7; color:var(--danger);}
+  :root[data-theme="dark"] .msg.err, @media (prefers-color-scheme: dark){.msg.err{background:#3a2420;}}
+  .muted{color:var(--muted); font-size:.85rem;}
+  .footer-actions{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .pill-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .pill{background:var(--accent); color:var(--primary-dark); padding:4px 10px; border-radius:999px; font-size:.75rem;}
+  .empty{padding:26px 10px; text-align:center; color:var(--muted); font-size:.88rem;}
+  .savedrow{display:flex; justify-content:space-between; padding:8px 4px; border-bottom:1px solid var(--border); font-size:.82rem; gap:8px; flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📋 Registro Digital de Calificaciones</h1>
+  <p>Selecciona tu escuela y grupo para digitar las notas del corte.</p>
+</header>
+<main>
+
+  <div class="card" id="adminCard">
+    <div id="adminLocked">
+      <h2>🔒 Panel de administrador — solo personal autorizado</h2>
+      <p class="muted" style="margin-top:-6px;">Acceso reservado para dirección y estadística. Ingresa tu usuario y contraseña para ver el resumen y descargar las notas.</p>
+      <div class="grid" style="max-width:420px;">
+        <div>
+          <label for="adminUser">Usuario</label>
+          <input type="text" id="adminUser" autocomplete="username">
+        </div>
+        <div>
+          <label for="adminPass">Contraseña</label>
+          <input type="password" id="adminPass" autocomplete="current-password">
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="primary" id="btnAdminLogin">Entrar</button>
+        <span class="muted" id="adminLoginMsg" style="margin-left:10px;"></span>
+      </div>
+    </div>
+
+    <div id="adminUnlocked" style="display:none;">
+    <div class="footer-actions">
+      <h2 style="margin:0;">👤 Panel de administrador</h2>
+      <button class="ghost" id="btnAdminLogout">Cerrar sesión</button>
+    </div>
+    <p class="muted">Las notas que digitan los docentes se guardan aquí mismo, en la base de datos de esta página (visible solo para tu organización). Desde aquí puedes descargar todo lo registrado hasta el momento en un archivo Excel.</p>
+    <div class="pill-list" id="adminStats">
+      <span class="pill">Cargando resumen...</span>
+    </div>
+    <div class="grid" style="margin-top:12px; max-width:320px;">
+      <div>
+        <label for="filtroNucleo">Descargar por núcleo</label>
+        <select id="filtroNucleo"><option value="">Todos los núcleos</option></select>
+      </div>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="primary" id="btnExportar">📥 Descargar Excel</button>
+      <span class="muted" id="exportMsg" style="margin-left:10px;"></span>
+    </div>
+    <div style="margin-top:16px;">
+      <label style="margin-bottom:6px;">Archivos de notas trabajados</label>
+      <div class="adminlist" id="listaNotas"><p class="empty">Cargando...</p></div>
+    </div>
+
+    </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. Datos del docente y del grupo</h2>
+    <div class="grid">
+      <div>
+        <label for="docente">Nombre del docente</label>
+        <input type="text" id="docente" placeholder="Nombres y apellidos">
+      </div>
+      <div>
+        <label for="nucleo">Núcleo educativo</label>
+        <select id="nucleo"><option value="">Selecciona...</option></select>
+      </div>
+      <div>
+        <label for="escuela">Escuela</label>
+        <select id="escuela" disabled><option value="">Selecciona núcleo primero...</option></select>
+      </div>
+      <div>
+        <label>Código de establecimiento</label>
+        <input type="text" id="codigoEstab" disabled placeholder="Automático">
+      </div>
+      <div>
+        <label>Código de centro</label>
+        <input type="text" id="codigoCentro" disabled placeholder="Automático">
+      </div>
+    </div>
+    <div class="grid" style="margin-top:12px;">
+      <div>
+        <label for="programa">Programa</label>
+        <select id="programa" disabled><option value="">Selecciona escuela primero...</option></select>
+      </div>
+      <div>
+        <label for="modalidad">Modalidad</label>
+        <select id="modalidad" disabled><option value="">--</option></select>
+      </div>
+      <div>
+        <label for="nivel">Nivel / Grado</label>
+        <select id="nivel" disabled><option value="">--</option></select>
+      </div>
+      <div>
+        <label for="seccion">Sección</label>
+        <select id="seccion" disabled><option value="">--</option></select>
+      </div>
+      <div>
+        <label for="turno">Turno</label>
+        <select id="turno" disabled><option value="">--</option></select>
+      </div>
+    </div>
+    <div id="loadmsg" class="muted" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card" id="tablaCard" style="display:none;">
+    <h2>2. Digitar notas</h2>
+    <div id="resumenGrupo" style="background:var(--accent); color:var(--primary-dark); border-radius:8px; padding:12px 16px; margin-bottom:14px; font-weight:600; font-size:.95rem;"></div>
+    <p class="scroll-hint">👉 Desliza la tabla hacia los lados para ver todas las materias. El nombre del estudiante queda fijo.</p>
+    <div class="tablewrap">
+      <table id="tabla">
+        <thead><tr id="theadRow"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="footer-actions" style="margin-top:14px;">
+      <span class="muted" id="statusText"></span>
+      <button class="primary" id="btnGuardar">Guardar notas del grupo</button>
+    </div>
+    <div id="saveMsg"></div>
+  </div>
+
+
+</main>
+
+<script>
+(function(){
+  // ============================================================
+  //  CONEXIÓN CON GOOGLE SHEETS  ->  pega aquí la URL de tu Apps Script
+  //  (termina en /exec; la obtienes al implementar Code.gs)
+  // ============================================================
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyai0l2b10cRv0z5Pf0jlGciKRNTXGh9P7Sm14P1-ng6zGWM-xuHyB3EWU01TtA6FTG/exec';
+
+  let adminCreds = null;   // usuario y clave del administrador durante la sesión
+
+  async function api(action, payload){
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},   // evita bloqueos CORS con Apps Script
+      body: JSON.stringify(Object.assign({action}, payload || {}))
+    });
+    const data = await res.json();
+    if (data && data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // Pequeño adaptador para que el resto de la página no cambie
+  function crearDb(){
+    const envolver = lista => ({docs: lista.map(x => ({data: () => x}))});
+    return {
+      collection(nombre){
+        return {
+          limit(){ return this; },
+          async get(){
+            if (nombre === 'centros') return envolver((await api('centros')).centros);
+            if (nombre === 'notas'){
+              if (!adminCreds) throw new Error('No autorizado.');
+              return envolver((await api('notas', adminCreds)).docs);
+            }
+            throw new Error('Colección no disponible: ' + nombre);
+          }
+        };
+      },
+      doc(ruta){
+        const [col] = ruta.split('/'), id = ruta.split('/')[1];
+        return {
+          async get(){
+            if (col === 'estudiantes'){
+              const d = await api('estudiantes', {estab: id});
+              return {exists: d.estudiantes.length > 0, data: () => d};
+            }
+            throw new Error('Documento no disponible: ' + ruta);
+          },
+          async set(obj){
+            if (col === 'notas') return api('guardar', {doc: obj});
+            throw new Error('Documento no disponible: ' + ruta);
+          }
+        };
+      }
+    };
+  }
+
+  // ---------- Config: grupos, materias, escala cualitativa ----------
+  const GRUPOS = {
+    preescolar: new Set(['PREESCOLAR COMUNITARIO MULTINIVEL','PREESCOLAR FORMAL MULTINIVEL','PREESCOLAR FORMAL','EDUCACION TEMPRANA']),
+    primREM: new Set(['PRIMARIA MULTIGRADO','PRIMARIA REGULAR','PRIM. MULTIGRADO EN EDUC. ESPECIAL','PRIMARIA EXTRAEDAD']),
+    primCOM: new Set(['Primaria Comunitaria JYA','ALFABETIZACION']),
+    secundaria: new Set(['SECUNDARIA EN EL CAMPO','SECUNDARIA REGULAR','SECUNDARIA POR ENCUENTRO','III CICLO','IV CICLO','BACHILLERATO COMUNITARIO DE JYA'])
+  };
+  const QUALSCALE = ['AI','AF','AS','AA']; // Aprendizaje Iniciado/en Formación/Satisfactorio/Avanzado
+  const QUALSCALE_PREESCOLAR = ['AP','AA']; // Aprendizaje en Proceso / Aprendizaje Alcanzado
+
+  const SUBJECTS = {
+    preescolar: [{code:'VAL', label:'Val. Aprendizaje', qual:true}],
+    primREM: [
+      {code:'MAT', label:'Matemática'}, {code:'LYL', label:'Lengua y Lit.'}, {code:'INGLES', label:'Inglés'},
+      {code:'EEFF', label:'EEFF', qual:true}, {code:'AEP', label:'AEP', qual:true}, {code:'CMM', label:'CMM', qual:true},
+      {code:'CCNN', label:'CCNN'}, {code:'CCSS', label:'CCSS'}, {code:'TAC', label:'TAC', qual:true},
+      {code:'CV', label:'CV', qual:true}, {code:'DDM', label:'DDM', qual:true}
+    ],
+    primCOM: [
+      {code:'MAT', label:'Matemática'}, {code:'LYL', label:'Lengua y Lit.'}, {code:'CCNN', label:'CCNN'},
+      {code:'CCSS', label:'CCSS'}, {code:'AFPT', label:'AFPT'}, {code:'MEDAMB', label:'Med. Ambiente'},
+      {code:'DDM', label:'DDM', qual:true}
+    ],
+    secundaria: [
+      {code:'MAT', label:'Matemática'}, {code:'LYL', label:'Lengua y Lit.'}, {code:'INGLES', label:'Inglés'},
+      {code:'EEFF', label:'EEFF', qual:true}, {code:'AEP', label:'AEP', qual:true}, {code:'CCNN', label:'CCNN'},
+      {code:'CCSS', label:'CCSS'}, {code:'QUIMICA', label:'Química'}, {code:'FISICA', label:'Física'},
+      {code:'BIOLOGIA', label:'Biología'}, {code:'GEOGRAFIA', label:'Geografía'}, {code:'SOCIOLOGIA', label:'Sociología'},
+      {code:'ECONOMIA', label:'Economía'}, {code:'VPFILO', label:'VP/Filo'}, {code:'TAC', label:'TAC', qual:true},
+      {code:'CV', label:'CV', qual:true}, {code:'DDM', label:'DDM', qual:true}, {code:'EMPPROS', label:'Emp. y Prós.'}
+    ]
+  };
+
+  function grupoDeModalidad(mod){
+    for (const g in GRUPOS){ if (GRUPOS[g].has(mod)) return g; }
+    return 'secundaria'; // fallback razonable
+  }
+  function subjectsFor(grupo, nivel){
+    // Regla explícita del padrón: preescolar, y primaria 1ro/2do => todo cualitativo
+    if (grupo === 'preescolar') return SUBJECTS.preescolar;
+    let subs = SUBJECTS[grupo].map(s=>({...s}));
+    if (grupo === 'primREM' && (nivel === 'Primero' || nivel === 'Segundo')){
+      subs = subs.map(s=>({...s, qual:true}));
+    }
+    return subs;
+  }
+
+  // ---------- Estado ----------
+  let db = null;
+  let centros = [];              // [{estab,centro,nombre,nucleo,comunidad,director,digitador}]
+  let estudiantesDoc = null;     // {estab, estudiantes:[...]}
+  let filtrados = [];
+  let grupoActual = null;
+  let grupoGuardado = null;   // si ya fue guardado, la tabla queda solo de lectura
+  const notasState = {};         // cp -> {code: value}
+
+  const el = id => document.getElementById(id);
+  const nucleoSel = el('nucleo'), escuelaSel = el('escuela'), programaSel = el('programa'),
+        modalidadSel = el('modalidad'), nivelSel = el('nivel'), seccionSel = el('seccion'), turnoSel = el('turno');
+
+  function setOptions(select, values, placeholder){
+    select.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value=''; opt0.textContent = placeholder;
+    select.appendChild(opt0);
+    values.forEach(v=>{
+      const o = document.createElement('option');
+      o.value = v.value !== undefined ? v.value : v;
+      o.textContent = v.label !== undefined ? v.label : v;
+      select.appendChild(o);
+    });
+  }
+
+  function fullName(s){
+    return [s.n1,s.n2,s.a1,s.a2].filter(Boolean).join(' ');
+  }
+
+  async function initDb(){
+    if (API_URL.indexOf('PEGA_AQUI') === 0){
+      el('loadmsg').innerHTML = '<span style="color:var(--danger)">Falta configurar API_URL en index.html con la URL de tu Apps Script.</span>';
+      return;
+    }
+    db = crearDb();
+    await loadCentros();
+  }
+
+  async function loadCentros(){
+    el('loadmsg').textContent = 'Cargando lista de escuelas...';
+    try{
+      const snap = await db.collection('centros').limit(1000).get();
+      centros = snap.docs.map(d=>d.data());
+      const nucleos = [...new Set(centros.map(c=>c.nucleo).filter(Boolean))].sort();
+      setOptions(nucleoSel, nucleos, 'Selecciona...');
+      el('loadmsg').textContent = centros.length ? '' : 'No hay escuelas cargadas todavía.';
+    }catch(e){
+      el('loadmsg').innerHTML = '<span style="color:var(--danger)">Error cargando escuelas: '+ (e && e.message ? e.message : e) +'</span>';
+    }
+  }
+
+  nucleoSel.addEventListener('change', ()=>{
+    const nuc = nucleoSel.value;
+    resetFrom('escuela');
+    if (!nuc){ escuelaSel.disabled = true; return; }
+    const opts = centros.filter(c=>c.nucleo===nuc)
+      .sort((a,b)=>a.nombre.localeCompare(b.nombre))
+      .map(c=>({value:c.estab, label:c.nombre}));
+    setOptions(escuelaSel, opts, 'Selecciona...');
+    escuelaSel.disabled = false;
+  });
+
+  escuelaSel.addEventListener('change', async ()=>{
+    resetFrom('programa');
+    const estab = escuelaSel.value;
+    if (!estab){ el('codigoEstab').value=''; el('codigoCentro').value=''; return; }
+    const centroInfo = centros.find(c=>String(c.estab)===String(estab));
+    el('codigoEstab').value = estab;
+    el('codigoCentro').value = centroInfo && centroInfo.centro != null ? centroInfo.centro : '';
+    el('loadmsg').textContent = 'Cargando estudiantes de la escuela...';
+    try{
+      const docRef = await db.doc('estudiantes/'+estab).get();
+      estudiantesDoc = docRef.exists ? docRef.data() : {estab:estab, estudiantes:[]};
+      const progs = [...new Set(estudiantesDoc.estudiantes.map(s=>s.prog).filter(Boolean))].sort();
+      setOptions(programaSel, progs, progs.length ? 'Selecciona...' : 'Sin datos para esta escuela');
+      programaSel.disabled = progs.length === 0;
+      el('loadmsg').textContent = progs.length ? '' : 'Esta escuela no tiene estudiantes precargados en el padrón.';
+    }catch(e){
+      el('loadmsg').innerHTML = '<span style="color:var(--danger)">Error cargando estudiantes: '+ (e && e.message ? e.message : e) +'</span>';
+    }
+  });
+
+  programaSel.addEventListener('change', ()=>{
+    resetFrom('modalidad');
+    const prog = programaSel.value;
+    if (!prog || !estudiantesDoc) return;
+    const mods = [...new Set(estudiantesDoc.estudiantes.filter(s=>s.prog===prog).map(s=>s.mod).filter(Boolean))].sort();
+    setOptions(modalidadSel, mods, 'Selecciona...');
+    modalidadSel.disabled = false;
+  });
+
+  modalidadSel.addEventListener('change', ()=>{
+    resetFrom('nivel');
+    const {prog, mod} = current();
+    if (!mod || !estudiantesDoc) return;
+    const nivs = [...new Set(estudiantesDoc.estudiantes.filter(s=>s.prog===prog && s.mod===mod).map(s=>s.niv).filter(Boolean))];
+    setOptions(nivelSel, nivs, 'Selecciona...');
+    nivelSel.disabled = false;
+  });
+
+  nivelSel.addEventListener('change', ()=>{
+    resetFrom('seccion');
+    const {prog, mod, niv} = current();
+    if (!niv || !estudiantesDoc) return;
+    const secs = [...new Set(estudiantesDoc.estudiantes.filter(s=>s.prog===prog && s.mod===mod && s.niv===niv).map(s=>s.sec).filter(Boolean))].sort();
+    setOptions(seccionSel, secs, 'Selecciona...');
+    seccionSel.disabled = false;
+  });
+
+  seccionSel.addEventListener('change', ()=>{
+    resetFrom('turno');
+    const {prog, mod, niv, sec} = current();
+    if (!sec || !estudiantesDoc) return;
+    const turnos = [...new Set(estudiantesDoc.estudiantes.filter(s=>s.prog===prog && s.mod===mod && s.niv===niv && s.sec===sec).map(s=>s.turno).filter(Boolean))].sort();
+    setOptions(turnoSel, turnos, 'Selecciona...');
+    turnoSel.disabled = false;
+  });
+
+  turnoSel.addEventListener('change', async ()=>{
+    const {prog, mod, niv, sec, turno} = current();
+    el('tablaCard').style.display = 'none';
+    if (!turno || !estudiantesDoc) return;
+    filtrados = estudiantesDoc.estudiantes
+      .filter(s=>s.prog===prog && s.mod===mod && s.niv===niv && s.sec===sec && s.turno===turno)
+      .sort((a,b)=> (a.a1+a.a2+a.n1).localeCompare(b.a1+b.a2+b.n1));
+    grupoActual = grupoDeModalidad(mod);
+    grupoGuardado = null;
+    el('tablaCard').style.display = 'block';
+    el('theadRow').innerHTML = ''; el('tbody').innerHTML = '<tr><td><div class="empty">Verificando si este grupo ya fue guardado...</div></td></tr>';
+    try{
+      grupoGuardado = await api('verGrupo', {estab: escuelaSel.value, programa: prog, modalidad: mod, nivel: niv, seccion: sec, turno: turno});
+    }catch(e){ /* si falla la verificación, se deja editar igual */ }
+    renderTabla();
+  });
+
+  function current(){
+    return {prog: programaSel.value, mod: modalidadSel.value, niv: nivelSel.value, sec: seccionSel.value, turno: turnoSel.value};
+  }
+
+  function resetFrom(step){
+    const order = ['escuela','programa','modalidad','nivel','seccion','turno'];
+    const idx = order.indexOf(step);
+    const map = {escuela:escuelaSel, programa:programaSel, modalidad:modalidadSel, nivel:nivelSel, seccion:seccionSel, turno:turnoSel};
+    order.slice(idx).forEach(k=>{
+      if (k!=='escuela' || step==='escuela'){
+        map[k].innerHTML = '<option value="">--</option>';
+        if (k!=='escuela') map[k].disabled = true;
+      }
+    });
+    el('tablaCard').style.display='none';
+  }
+
+  function renderTabla(){
+    const subs = subjectsFor(grupoActual, nivelSel.value);
+    const bloqueado = !!grupoGuardado;
+    const notasPrevias = {};
+    if (bloqueado) (grupoGuardado.estudiantes || []).forEach(e => notasPrevias[e.cp] = e.notas || {});
+
+    const tabla = el('tabla');
+    const oldColgroup = tabla.querySelector('colgroup');
+    if (oldColgroup) oldColgroup.remove();
+    const colgroup = document.createElement('colgroup');
+    colgroup.innerHTML = '<col class="col-name">' + '<col class="col-grade">'.repeat(subs.length);
+    tabla.insertBefore(colgroup, tabla.firstChild);
+    const thead = el('theadRow');
+    thead.innerHTML = '<th>Estudiante</th>' + subs.map(s=>`<th>${s.label}</th>`).join('');
+    const tbody = el('tbody');
+    tbody.innerHTML = '';
+    Object.keys(notasState).forEach(k=>delete notasState[k]);
+
+    if (!filtrados.length){
+      tbody.innerHTML = `<tr><td colspan="${subs.length + 1}"><div class="empty">No hay estudiantes para esta combinación.</div></td></tr>`;
+    } else {
+      filtrados.forEach(s=>{
+        notasState[s.cp] = {};
+        const previas = notasPrevias[s.cp] || {};
+        const tr = document.createElement('tr');
+        let inputsHtml = '';
+        subs.forEach(sub=>{
+          const val = bloqueado ? (previas[sub.code] ?? '') : '';
+          if (sub.qual){
+            const scale = grupoActual === 'preescolar' ? QUALSCALE_PREESCOLAR : QUALSCALE;
+            inputsHtml += `<td data-label="${sub.label}"><select class="qual-select" data-cp="${s.cp}" data-code="${sub.code}" ${bloqueado?'disabled':''}>
+              <option value="">--</option>
+              ${scale.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}
+            </select></td>`;
+          } else {
+            const bajo = val !== '' && !isNaN(parseFloat(val)) && parseFloat(val) < 60;
+            inputsHtml += `<td data-label="${sub.label}"><input type="number" min="0" max="100" class="grade-input${bajo?' nota-baja':''}" data-cp="${s.cp}" data-code="${sub.code}" value="${val}" ${bloqueado?'disabled':''}></td>`;
+          }
+          if (bloqueado) notasState[s.cp][sub.code] = val;
+        });
+        tr.innerHTML = `<td class="nombre-col">${fullName(s)}</td>${inputsHtml}`;
+        tbody.appendChild(tr);
+      });
+    }
+    const {prog, mod, niv, sec, turno} = current();
+    el('resumenGrupo').textContent =
+      `👥 ${filtrados.length} estudiante${filtrados.length===1?'':'s'} en ${niv||''} "${sec||''}" · ${turno||''} — ${prog||''} / ${mod||''}`;
+    el('statusText').textContent = '';
+    el('btnGuardar').style.display = bloqueado ? 'none' : 'inline-block';
+    if (bloqueado){
+      const fecha = grupoGuardado.actualizado ? new Date(grupoGuardado.actualizado).toLocaleString('es-NI') : '';
+      el('saveMsg').innerHTML = `<div class="msg ok">🔒 Este grupo ya fue guardado por ${grupoGuardado.docente||'un docente'} (${fecha}) y no se puede modificar. Si hay un error, pide al administrador que lo corrija directamente en la hoja de cálculo.</div>`;
+    } else {
+      el('saveMsg').innerHTML = '';
+    }
+  }
+
+  el('tbody').addEventListener('input', (e)=>{
+    const t = e.target;
+    const cp = t.dataset.cp, code = t.dataset.code;
+    if (!cp) return;
+
+    if (t.type === 'number'){
+      let v = t.value;
+      if (v !== ''){
+        let n = parseFloat(v);
+        if (isNaN(n)){ n = ''; }
+        else if (n < 0){ n = 0; }
+        else if (n > 100){ n = 100; }
+        if (n !== '' && String(n) !== v){ t.value = n; v = String(n); }
+        t.classList.toggle('nota-baja', n !== '' && n < 60);
+      } else {
+        t.classList.remove('nota-baja');
+      }
+    }
+
+    notasState[cp][code] = t.value;
+  });
+
+  el('btnGuardar').addEventListener('click', async ()=>{
+    const docente = el('docente').value.trim();
+    const {prog, mod, niv, sec, turno} = current();
+    const saveMsg = el('saveMsg');
+    saveMsg.innerHTML = '';
+    if (!docente){ saveMsg.innerHTML = '<div class="msg err">Escribe el nombre del docente antes de guardar.</div>'; return; }
+    if (!filtrados.length){ saveMsg.innerHTML = '<div class="msg err">No hay estudiantes que guardar.</div>'; return; }
+    if (!db){ saveMsg.innerHTML = '<div class="msg err">Sin conexión a la base de datos.</div>'; return; }
+
+    const centroInfo = centros.find(c=>String(c.estab)===String(escuelaSel.value)) || {};
+    const estudiantesPayload = filtrados.map(s=>({
+      cp: s.cp, nombre: fullName(s),
+      notas: {...notasState[s.cp]}
+    }));
+
+    const docId = [escuelaSel.value, prog, mod, niv, sec, turno]
+      .join('_').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+
+    el('btnGuardar').disabled = true;
+    el('statusText').textContent = 'Guardando...';
+    try{
+      await db.doc('notas/'+docId).set({
+        estab: Number(escuelaSel.value),
+        centro: centroInfo.centro != null ? centroInfo.centro : null,
+        escuela: centroInfo.nombre || '',
+        nucleo: centroInfo.nucleo || '',
+        programa: prog, modalidad: mod, nivel: niv, seccion: sec, turno: turno,
+        docente: docente,
+        actualizado: Date.now(),
+        estudiantes: estudiantesPayload
+      });
+      const sinNotas = estudiantesPayload.filter(e => Object.values(e.notas).every(v => v === '' || v == null));
+
+      // Se acaba de guardar: bloquear la tabla de inmediato, sin esperar a que
+      // el docente vuelva a tocar los menús de arriba.
+      grupoGuardado = {docente, actualizado: Date.now(), estudiantes: estudiantesPayload};
+      renderTabla();
+      if (sinNotas.length){
+        saveMsg.innerHTML += `<div class="msg err">⚠️ ${sinNotas.length} estudiante${sinNotas.length===1?'':'s'} ${sinNotas.length===1?'quedó':'quedaron'} sin ninguna nota registrada: ${sinNotas.map(e=>e.nombre).join(', ')}</div>`;
+      }
+      loadAdminStats();
+    }catch(e){
+      if (e && /ya fue guardado/i.test(e.message)){
+        saveMsg.innerHTML = `<div class="msg err">⚠️ Este grupo ya había sido guardado por otro docente mientras digitabas. No se guardó de nuevo para no sobrescribirlo.</div>`;
+        grupoGuardado = await api('verGrupo', {estab: escuelaSel.value, programa: prog, modalidad: mod, nivel: niv, seccion: sec, turno: turno});
+        renderTabla();
+      } else {
+        saveMsg.innerHTML = '<div class="msg err">Error al guardar: '+ (e && e.message ? e.message : e) +'</div>';
+      }
+    }
+    el('btnGuardar').disabled = false;
+    el('statusText').textContent = '';
+  });
+
+  // ---------- Acceso del panel de administrador ----------
+  const AUTH_KEY = 'notas_admin_sesion';
+
+  function mostrarAdminDesbloqueado(){
+    el('adminLocked').style.display = 'none';
+    el('adminUnlocked').style.display = 'block';
+    loadAdminStats();
+  }
+
+  function bloquearAdmin(){
+    adminCreds = null;
+    el('adminLocked').style.display = 'block';
+    el('adminUnlocked').style.display = 'none';
+    el('adminUser').value = '';
+    el('adminPass').value = '';
+  }
+
+  el('btnAdminLogin').addEventListener('click', async ()=>{
+    const usuario = el('adminUser').value.trim();
+    const clave = el('adminPass').value;
+    const msg = el('adminLoginMsg');
+    msg.textContent = '';
+    if (!usuario || !clave){ msg.innerHTML = '<span style="color:var(--danger)">Escribe usuario y contraseña.</span>'; return; }
+    if (!db){ msg.innerHTML = '<span style="color:var(--danger)">Sin conexión con la hoja de cálculo.</span>'; return; }
+    msg.textContent = 'Verificando...';
+    try{
+      const r = await api('login', {usuario, clave});
+      if (!r.ok){ msg.innerHTML = '<span style="color:var(--danger)">Usuario o contraseña incorrectos.</span>'; return; }
+      msg.textContent = '';
+      adminCreds = {usuario, clave};
+      sessionStorage.setItem(AUTH_KEY, JSON.stringify(adminCreds));
+      mostrarAdminDesbloqueado();
+    }catch(e){
+      msg.innerHTML = '<span style="color:var(--danger)">No se pudo verificar: ' + (e && e.message ? e.message : e) + '</span>';
+    }
+  });
+
+  el('btnAdminLogout').addEventListener('click', ()=>{
+    sessionStorage.removeItem(AUTH_KEY);
+    bloquearAdmin();
+  });
+
+  function checkSesionAdmin(){
+    const raw = sessionStorage.getItem(AUTH_KEY);
+    if (!raw) return;
+    try{
+      adminCreds = JSON.parse(raw);
+      mostrarAdminDesbloqueado();
+    }catch(e){ sessionStorage.removeItem(AUTH_KEY); }
+  }
+
+  // ---------- Panel de administrador ----------
+  let allNotasCache = [];
+
+  async function loadAdminStats(){
+    if (!db) return;
+    try{
+      const snap = await db.collection('notas').limit(1000).get();
+      allNotasCache = snap.docs.map(d=>d.data());
+      renderAdminStats();
+      renderListaNotas();
+
+      const nucleosConNotas = [...new Set(allNotasCache.map(d=>d.nucleo).filter(Boolean))].sort();
+      const filtro = el('filtroNucleo');
+      const seleccionPrevia = filtro.value;
+      filtro.innerHTML = '<option value="">Todos los núcleos</option>' +
+        nucleosConNotas.map(n=>`<option value="${n}">${n}</option>`).join('');
+      filtro.value = nucleosConNotas.includes(seleccionPrevia) ? seleccionPrevia : '';
+    }catch(e){
+      if (e && /No autorizado/.test(e.message)){ sessionStorage.removeItem(AUTH_KEY); bloquearAdmin(); return; }
+      el('adminStats').innerHTML = '<span class="pill">No se pudo cargar el resumen</span>';
+      el('listaNotas').innerHTML = '<p class="empty">No se pudo cargar el listado.</p>';
+    }
+  }
+
+  function notasFiltradas(){
+    const nuc = el('filtroNucleo').value;
+    return nuc ? allNotasCache.filter(d=>d.nucleo===nuc) : allNotasCache;
+  }
+
+  function renderAdminStats(){
+    const docs = notasFiltradas();
+    const totalEstudiantes = docs.reduce((sum,d)=>sum + (d.estudiantes ? d.estudiantes.length : 0), 0);
+    const escuelas = new Set(docs.map(d=>d.estab)).size;
+    el('adminStats').innerHTML = `
+      <span class="pill">${docs.length} grupo${docs.length===1?'':'s'} guardado${docs.length===1?'':'s'}</span>
+      <span class="pill">${totalEstudiantes} nota${totalEstudiantes===1?'':'s'} de estudiante digitadas</span>
+      <span class="pill">${escuelas} escuela${escuelas===1?'':'s'} con registros</span>
+    `;
+  }
+
+  function renderListaNotas(){
+    const docs = notasFiltradas().slice().sort((a,b)=>(b.actualizado||0)-(a.actualizado||0));
+    const cont = el('listaNotas');
+    if (!docs.length){ cont.innerHTML = '<p class="empty">Aún no hay notas guardadas.</p>'; return; }
+    const filas = docs.map(v=>{
+      const fecha = v.actualizado ? new Date(v.actualizado).toLocaleString('es-NI') : '';
+      return `<tr>
+        <td>${v.nucleo||''}</td><td>${v.escuela||''}</td><td>${v.programa||''} / ${v.modalidad||''}</td>
+        <td>${v.nivel||''} "${v.seccion||''}"</td><td>${v.turno||''}</td>
+        <td>${v.estudiantes ? v.estudiantes.length : 0}</td><td>${v.docente||''}</td><td>${fecha}</td>
+      </tr>`;
+    }).join('');
+    cont.innerHTML = `<table><thead><tr>
+      <th>Núcleo</th><th>Escuela</th><th>Programa/Mod.</th><th>Grado</th><th>Turno</th><th>Est.</th><th>Docente</th><th>Guardado</th>
+    </tr></thead><tbody>${filas}</tbody></table>`;
+  }
+
+  el('filtroNucleo').addEventListener('change', ()=>{
+    renderAdminStats();
+    renderListaNotas();
+  });
+
+  el('btnExportar').addEventListener('click', async ()=>{
+    const exportMsg = el('exportMsg');
+    exportMsg.textContent = '';
+    if (!db){ exportMsg.textContent = 'Sin conexión a la base de datos.'; return; }
+    const downloads = {
+      async save({filename, data}){
+        const url = URL.createObjectURL(data);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 5000);
+        return {status: 'saved'};
+      }
+    };
+    if (typeof ExcelJS === 'undefined'){ exportMsg.textContent = 'No se pudo cargar el generador de Excel. Recarga la página.'; return; }
+
+    el('btnExportar').disabled = true;
+    exportMsg.textContent = 'Generando Excel...';
+    try{
+      const nucleoSeleccionado = el('filtroNucleo').value;
+      const docs = notasFiltradas();
+      if (!docs.length){ exportMsg.textContent = 'No hay notas guardadas para ese núcleo.'; el('btnExportar').disabled=false; return; }
+
+      const porGrupo = {preescolar:[], primREM:[], primCOM:[], secundaria:[]};
+      docs.forEach(d=>{
+        const g = grupoDeModalidad(d.modalidad);
+        (d.estudiantes||[]).forEach(est=>{
+          porGrupo[g].push({d, est});
+        });
+      });
+
+      const NOMBRES_GRUPO = {preescolar:'Preescolar', primREM:'Primaria', primCOM:'Primaria Comunitaria JYA', secundaria:'Secundaria'};
+      const FIJAS = ['Núcleo','Escuela','Cod. Establecimiento','Cod. Centro','Programa','Modalidad','Nivel','Sección','Turno','Docente','Estudiante','Cod. Persona'];
+      const wb = new ExcelJS.Workbook();
+
+      Object.keys(porGrupo).forEach(g=>{
+        const filas = porGrupo[g];
+        if (!filas.length) return;
+        const subs = SUBJECTS[g];
+        const usaPromedio = g !== 'preescolar';
+        const headers = FIJAS.concat(subs.map(s=>s.label)).concat(usaPromedio ? ['Promedio'] : []);
+        const ws = wb.addWorksheet(NOMBRES_GRUPO[g]);
+        const headerRow = ws.addRow(headers);
+        headerRow.font = {bold:true};
+
+        filas.forEach(({d,est})=>{
+          const row = [
+            d.nucleo||'', d.escuela||'', d.estab||'', d.centro||'', d.programa||'', d.modalidad||'',
+            d.nivel||'', d.seccion||'', d.turno||'', d.docente||'', est.nombre||'', est.cp||''
+          ];
+          subs.forEach(s=> row.push(est.notas ? (est.notas[s.code] ?? '') : ''));
+          // El promedio no se digita: se calcula aquí a partir de las notas numéricas del estudiante
+          let promVal = '';
+          if (usaPromedio){
+            const numericas = subs.filter(s=>!s.qual).map(s=>parseFloat(est.notas ? est.notas[s.code] : ''));
+            const validas = numericas.filter(n=>!isNaN(n));
+            if (validas.length) promVal = Math.round((validas.reduce((a,b)=>a+b,0)/validas.length)*10)/10;
+            row.push(promVal);
+          }
+          const xlRow = ws.addRow(row);
+
+          // Pinta en rojo las notas numéricas menores a 60 (subs no cualitativas + promedio)
+          subs.forEach((s,i)=>{
+            if (s.qual) return;
+            const val = parseFloat(row[FIJAS.length + i]);
+            if (!isNaN(val) && val < 60){
+              xlRow.getCell(FIJAS.length + i + 1).font = {color:{argb:'FFC0392B'}, bold:true};
+            }
+          });
+          if (usaPromedio && promVal !== '' && promVal < 60){
+            xlRow.getCell(headers.length).font = {color:{argb:'FFC0392B'}, bold:true};
+          }
+        });
+        ws.columns.forEach(col=>{ col.width = 14; });
+        ws.getColumn(FIJAS.indexOf('Estudiante')+1).width = 26;
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {type:'application/octet-stream'});
+      const fecha = new Date().toISOString().slice(0,10);
+      const sufijoNucleo = nucleoSeleccionado
+        ? '_' + nucleoSeleccionado.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-')
+        : '_todos';
+      const result = await downloads.save({filename:`notas_digitadas${sufijoNucleo}_${fecha}.xlsx`, data: blob});
+      exportMsg.textContent = result.status === 'saved' ? '✅ Excel descargado.' : '✅ Excel enviado.';
+    }catch(e){
+      if (e && e.code === 'declined'){
+        exportMsg.textContent = 'Descarga cancelada.';
+      } else {
+        exportMsg.textContent = 'Error generando el Excel: ' + (e && e.message ? e.message : e);
+      }
+    }
+    el('btnExportar').disabled = false;
+  });
+
+  initDb().then(checkSesionAdmin);
+})();
+</script>
+</body>
+</html>
